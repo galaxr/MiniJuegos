@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Minijuegos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #loader {
+            font-size: 18px;
+            color: #555;
+            font-weight: bold;
+        }
+        #contenedor-minijuego {
+            width: 100%;
+            max-width: 800px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">Cargando tu minijuego, por favor espera...</div>
+    <div id="contenedor-minijuego"></div>
+
+    <script>
+        // 1. URL de tu Web App cifrada en Base64
+        const URL_BACKEND_BASE64 = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y2J3bkxFcXR2TDh0QUhxWFg5bHlOd3ZlXzJVVVA3Z3p1VmhqT3RqZnZrSXRIXHZUbWlLMWNxZlNfYWRocElWaUt4L2V4ZWM=";
+        const URL_BACKEND = atob(URL_BACKEND_BASE64);
+
+        // 2. Extraemos el ID de la URL (ejemplo: tu-web.github.io/juego.html?id=USER123)
+        const params = new URLSearchParams(window.location.search);
+        const idUsuario = params.get("id");
+
+        const loader = document.getElementById("loader");
+        const contenedor = document.getElementById("contenedor-minijuego");
+
+        // Función auxiliar para decodificar Base64 manteniendo soporte UTF-8 (tildes, ñ, etc.)
+        function decodeBase64Utf8(base64) {
+            const binString = atob(base64);
+            const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0));
+            return new TextDecoder().decode(bytes);
+        }
+
+        if (!idUsuario) {
+            loader.innerHTML = "❌ Error: No se encontró ningún ID en la URL. Asegúrate de ingresar con un enlace válido (ej: ?id=tu_codigo).";
+            loader.style.color = "red";
+        } else {
+            // 3. Hacemos la petición fetch al backend
+            fetch(`${URL_BACKEND}?id=${idUsuario}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        // Ocultamos el mensaje de carga
+                        loader.style.display = "none";
+                        
+                        // Decodificamos el HTML que viajó en Base64 desde Google Sheets
+                        const htmlDecodificado = decodeBase64Utf8(data.html);
+                        
+                        // Inyectamos el código HTML del minijuego
+                        contenedor.innerHTML = htmlDecodificado;
+
+                        // Re-ejecutamos los scripts internos si el minijuego los trae
+                        const scripts = contenedor.getElementsByTagName("script");
+                        for (let i = 0; i < scripts.length; i++) {
+                            eval(scripts[i].innerHTML);
+                        }
+
+                    } else {
+                        loader.innerHTML = "❌ " + (data.error || "Ocurrió un error al cargar el minijuego.");
+                        loader.style.color = "red";
+                    }
+                })
+                .catch(error => {
+                    console.error("Error de conexión:", error);
+                    loader.innerHTML = "❌ Error de conexión con el servidor de la base de datos.";
+                    loader.style.color = "red";
+                });
+        }
+    </script>
+
+</body>
+</html>
